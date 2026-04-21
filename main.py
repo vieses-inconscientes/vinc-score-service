@@ -69,7 +69,80 @@ def build_placeholder_matrix() -> Dict[str, MatrixEntry]:
 
 SCORING_MATRIX: Dict[str, MatrixEntry] = build_placeholder_matrix()
 
-# Exemplo de como nós vamos sobrescrever depois:
+SCORING_MATRIX.update({
+    "B1_U1": MatrixEntry(
+        block="B1",
+        label="Perfeccionismo e autoexigência",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = perfeccionismo normativo / autoexigência elevada. "
+            "Polo B = excelência flexível. "
+            "Maior rigidez autoavaliativa no polo A."
+        ),
+    ),
+    "B1_U2": MatrixEntry(
+        block="B1",
+        label="Descanso condicionado ao merecimento",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = descanso integrado à produtividade. "
+            "Polo B = descanso condicionado ao dever concluído. "
+            "Maior produtivismo internalizado no polo B."
+        ),
+    ),
+    "B1_U3": MatrixEntry(
+        block="B1",
+        label="Valorização do sofrimento como via de crescimento",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = sofrimento formador / mérito via dor. "
+            "Polo B = desenvolvimento sem glorificação do sofrimento. "
+            "Maior romantização da dor no polo A."
+        ),
+    ),
+    "B1_U4": MatrixEntry(
+        block="B1",
+        label="Autodisciplina com ou sem sacrifício do bem-estar",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = disciplina integrada ao bem-estar. "
+            "Polo B = disciplina punitiva e sacrificial. "
+            "Maior endurecimento e autoimposição rígida no polo B."
+        ),
+    ),
+    "B1_U5": MatrixEntry(
+        block="B1",
+        label="Reconhecimento de conquistas e suficiência subjetiva",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = reconhecimento realista de conquistas. "
+            "Polo B = insuficiência crônica percebida. "
+            "Maior invalidação de progresso e autodesqualificação no polo B."
+        ),
+    ),
+    "B1_U6": MatrixEntry(
+        block="B1",
+        label="Crescimento sem cobrança permanente",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = cobrança permanente de melhoria. "
+            "Polo B = crescimento sem pressão crônica. "
+            "Maior mandato interno de aperfeiçoamento contínuo no polo A."
+        ),
+    ),
+})# Exemplo de como nós vamos sobrescrever depois:
 # SCORING_MATRIX["B1_U1"] = MatrixEntry(
 #     block="B1",
 #     label="Perfeccionismo / autoexigência",
