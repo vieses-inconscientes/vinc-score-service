@@ -1,14 +1,22 @@
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
+
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 
 app = FastAPI(
     title="vinc-score-service",
-    version="1.0.0",
-    description="Serviço inicial de validação e preparação de score do V'inC."
+    version="2.0.0",
+    description="Serviço inicial de validação, completude e score base do V'inC."
 )
 
+BLOCKS = [f"B{i}" for i in range(1, 7)]
+UNITS_PER_BLOCK = 6
+
+
+# =========================================================
+# MODELOS DE ENTRADA
+# =========================================================
 
 class UnitPayload(BaseModel):
     polo_escolhido: Optional[Literal["A", "B"]] = None
@@ -28,60 +36,233 @@ class ScoreRequest(BaseModel):
     normalized: Dict[str, UnitPayload]
 
 
-def unit_is_complete(unit: UnitPayload) -> bool:
+# =========================================================
+# MATRIZ TÉCNICA
+# =========================================================
+
+class MatrixEntry(BaseModel):
+    block: str
+    label: str
+    weight: float = 1.0
+    pole_A_direction: Optional[int] = None   # Ex.: +1 ou -1
+    pole_B_direction: Optional[int] = None   # Ex.: +1 ou -1
+    notes: Optional[str] = None
+
+
+def build_placeholder_matrix() -> Dict[str, MatrixEntry]:
+    matrix: Dict[str, MatrixEntry] = {}
+
+    for b in range(1, 7):
+        for u in range(1, 7):
+            unit_key = f"B{b}_U{u}"
+            matrix[unit_key] = MatrixEntry(
+                block=f"B{b}",
+                label=f"Placeholder {unit_key}",
+                weight=1.0,
+                pole_A_direction=None,
+                pole_B_direction=None,
+                notes="Direção ainda não definida na matriz técnica."
+            )
+
+    return matrix
+
+
+SCORING_MATRIX: Dict[str, MatrixEntry] = build_placeholder_matrix()
+
+# Exemplo de como nós vamos sobrescrever depois:
+# SCORING_MATRIX["B1_U1"] = MatrixEntry(
+#     block="B1",
+#     label="Perfeccionismo / autoexigência",
+#     weight=1.0,
+#     pole_A_direction=+1,
+#     pole_B_direction=-1,
+#     notes="Exemplo provisório"
+# )
+
+
+# =========================================================
+# HELPERS
+# =========================================================
+
+def expected_unit_keys() -> List[str]:
+    return [f"B{b}_U{u}" for b in range(1, 7) for u in range(1, 7)]
+
+
+def unit_is_complete(unit: Optional[UnitPayload]) -> bool:
+    if unit is None:
+        return False
     return (
         unit.polo_escolhido is not None
         and unit.valor_likert_nao_escolhido is not None
     )
 
 
-def list_missing_units(normalized: Dict[str, UnitPayload]) -> list[str]:
-    missing = []
-    for key, unit in normalized.items():
-        if not unit_is_complete(unit):
-            missing.append(key)
-    return missing
+def matrix_entry_is_defined(entry: Optional[MatrixEntry]) -> bool:
+    if entry is None:
+        return False
+    return (
+        entry.pole_A_direction in (-1, 1)
+        and entry.pole_B_direction in (-1, 1)
+    )
 
 
-def summarize_blocks(normalized: Dict[str, UnitPayload]) -> Dict[str, Dict[str, Any]]:
-    blocks: Dict[str, Dict[str, Any]] = {}
+def chosen_direction(entry: MatrixEntry, chosen_pole: str) -> Optional[int]:
+    if chosen_pole == "A":
+        return entry.pole_A_direction
+    if chosen_pole == "B":
+        return entry.pole_B_direction
+    return None
 
-    for block_num in range(1, 7):
-        block_key = f"B{block_num}"
-        block_units = {
-            key: unit
-            for key, unit in normalized.items()
-            if key.upper().startswith(f"{block_key}_")
-        }
 
-        total_units = len(block_units)
-        complete_units = 0
-        missing_units = []
-        likert_values = []
+def compute_classification_stub(weighted_mean: Optional[float]) -> Optional[str]:
+    if weighted_mean is None:
+        return None
 
-        for key, unit in block_units.items():
-            if unit_is_complete(unit):
-                complete_units += 1
-                likert_values.append(unit.valor_likert_nao_escolhido)
-            else:
-                missing_units.append(key)
+    if weighted_mean <= -3.5:
+        return "tendencia_protetiva_provisoria"
+    if weighted_mean <= -1.5:
+        return "faixa_protetiva_moderada_provisoria"
+    if weighted_mean < 1.5:
+        return "faixa_intermediaria_provisoria"
+    if weighted_mean < 3.5:
+        return "faixa_rigidez_moderada_provisoria"
+    return "tendencia_rigida_provisoria"
 
-        media_likert_placeholder = (
-            round(sum(likert_values) / len(likert_values), 2)
-            if likert_values
-            else None
-        )
 
-        blocks[block_key] = {
-            "unidades_recebidas": total_units,
-            "unidades_completas": complete_units,
-            "unidades_faltantes": len(missing_units),
-            "missing_units": missing_units,
-            "media_likert_placeholder": media_likert_placeholder,
-        }
+def analyze_unit(unit_key: str, payload_unit: Optional[UnitPayload]) -> Dict[str, Any]:
+    matrix_entry = SCORING_MATRIX.get(unit_key)
 
-    return blocks
+    result: Dict[str, Any] = {
+        "unit_key": unit_key,
+        "block": unit_key.split("_")[0],
+        "label": matrix_entry.label if matrix_entry else None,
+        "weight": matrix_entry.weight if matrix_entry else None,
+        "chosen_pole": None,
+        "nonchosen_likert": None,
+        "completeness_status": None,
+        "score_status": None,
+        "direction_used": None,
+        "raw_directional_score": None,
+        "weighted_score": None,
+        "notes": [],
+    }
 
+    if payload_unit is None:
+        result["completeness_status"] = "missing_key"
+        result["score_status"] = "not_scored"
+        result["notes"].append("Unidade ausente no payload.")
+        return result
+
+    result["chosen_pole"] = payload_unit.polo_escolhido
+    result["nonchosen_likert"] = payload_unit.valor_likert_nao_escolhido
+
+    if not unit_is_complete(payload_unit):
+        result["completeness_status"] = "incomplete"
+        result["score_status"] = "not_scored"
+        result["notes"].append("Unidade presente, mas incompleta.")
+        return result
+
+    result["completeness_status"] = "complete"
+
+    if matrix_entry is None:
+        result["score_status"] = "matrix_missing"
+        result["notes"].append("Unidade sem entrada na matriz técnica.")
+        return result
+
+    if not matrix_entry_is_defined(matrix_entry):
+        result["score_status"] = "matrix_pending"
+        result["notes"].append("Direções A/B ainda não definidas na matriz técnica.")
+        return result
+
+    direction = chosen_direction(matrix_entry, payload_unit.polo_escolhido)
+    if direction is None:
+        result["score_status"] = "direction_missing"
+        result["notes"].append("Não foi possível determinar a direção da unidade.")
+        return result
+
+    raw_directional_score = payload_unit.valor_likert_nao_escolhido * direction
+    weighted_score = raw_directional_score * matrix_entry.weight
+
+    result["score_status"] = "scored"
+    result["direction_used"] = direction
+    result["raw_directional_score"] = raw_directional_score
+    result["weighted_score"] = round(weighted_score, 4)
+
+    return result
+
+
+def summarize_block(block: str, unit_results: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    block_unit_keys = [f"{block}_U{u}" for u in range(1, UNITS_PER_BLOCK + 1)]
+    block_units = [unit_results[key] for key in block_unit_keys]
+
+    units_expected = len(block_units)
+    units_complete = sum(1 for u in block_units if u["completeness_status"] == "complete")
+    units_scored = sum(1 for u in block_units if u["score_status"] == "scored")
+    units_missing = [u["unit_key"] for u in block_units if u["completeness_status"] != "complete"]
+
+    scored_values = [u["weighted_score"] for u in block_units if u["weighted_score"] is not None]
+
+    block_weighted_sum = round(sum(scored_values), 4) if scored_values else None
+    block_weighted_mean = round(sum(scored_values) / len(scored_values), 4) if scored_values else None
+    completeness_percent = round((units_complete / units_expected) * 100, 2) if units_expected else 0.0
+    scoreable_percent = round((units_scored / units_expected) * 100, 2) if units_expected else 0.0
+
+    return {
+        "block": block,
+        "units_expected": units_expected,
+        "units_complete": units_complete,
+        "units_scored": units_scored,
+        "units_missing": len(units_missing),
+        "missing_units": units_missing,
+        "completeness_percent": completeness_percent,
+        "scoreable_percent": scoreable_percent,
+        "weighted_sum": block_weighted_sum,
+        "weighted_mean": block_weighted_mean,
+    }
+
+
+def build_flags(
+    payload: ScoreRequest,
+    total_units_complete: int,
+    total_units_scored: int,
+    total_units_expected: int,
+) -> List[Dict[str, Any]]:
+    flags: List[Dict[str, Any]] = []
+
+    if payload.status.lower() != "completed":
+        flags.append({
+            "code": "status_not_completed",
+            "severity": "medium",
+            "message": "O status recebido não é 'completed'."
+        })
+
+    if total_units_complete < total_units_expected:
+        flags.append({
+            "code": "partial_submission",
+            "severity": "medium",
+            "message": "A submissão está incompleta."
+        })
+
+    if total_units_scored == 0:
+        flags.append({
+            "code": "matrix_pending",
+            "severity": "info",
+            "message": "Nenhuma unidade foi pontuada porque a matriz técnica ainda não está definida."
+        })
+
+    if total_units_complete > 0 and total_units_scored < total_units_complete:
+        flags.append({
+            "code": "complete_but_not_scored",
+            "severity": "info",
+            "message": "Há unidades completas, mas ainda não pontuáveis por falta de direção técnica."
+        })
+
+    return flags
+
+
+# =========================================================
+# ROTAS
+# =========================================================
 
 @app.get("/")
 def root() -> Dict[str, str]:
@@ -101,24 +282,78 @@ def health() -> Dict[str, str]:
 
 @app.post("/score")
 def score(payload: ScoreRequest) -> Dict[str, Any]:
-    units_received = len(payload.normalized)
-    missing_units = list_missing_units(payload.normalized)
-    units_complete = units_received - len(missing_units)
-    blocks_summary = summarize_blocks(payload.normalized)
+    expected_keys = expected_unit_keys()
+
+    unit_results: Dict[str, Dict[str, Any]] = {}
+    for unit_key in expected_keys:
+        payload_unit = payload.normalized.get(unit_key)
+        unit_results[unit_key] = analyze_unit(unit_key, payload_unit)
+
+    total_units_expected = len(expected_keys)
+    total_units_received = len(payload.normalized)
+    total_units_complete = sum(
+        1 for unit in unit_results.values()
+        if unit["completeness_status"] == "complete"
+    )
+    total_units_scored = sum(
+        1 for unit in unit_results.values()
+        if unit["score_status"] == "scored"
+    )
+
+    missing_units = [
+        unit["unit_key"] for unit in unit_results.values()
+        if unit["completeness_status"] != "complete"
+    ]
+
+    scored_values = [
+        unit["weighted_score"] for unit in unit_results.values()
+        if unit["weighted_score"] is not None
+    ]
+
+    global_weighted_sum = round(sum(scored_values), 4) if scored_values else None
+    global_weighted_mean = round(sum(scored_values) / len(scored_values), 4) if scored_values else None
+    classification_stub = compute_classification_stub(global_weighted_mean)
+
+    completeness_percent = round((total_units_complete / total_units_expected) * 100, 2)
+    scored_percent = round((total_units_scored / total_units_expected) * 100, 2)
+
+    block_scores: Dict[str, Any] = {
+        block: summarize_block(block, unit_results)
+        for block in BLOCKS
+    }
+
+    flags = build_flags(
+        payload=payload,
+        total_units_complete=total_units_complete,
+        total_units_scored=total_units_scored,
+        total_units_expected=total_units_expected,
+    )
 
     return {
         "submission_id": payload.submission_id,
         "instrument_version": payload.instrument_version,
         "methodology_version": payload.methodology_version,
-        "algorithm_version": "score_stub_v1_0_0",
+        "algorithm_version": "score_v2_base_0_1_0",
         "status": "accepted",
-        "validation": {
-            "units_received": units_received,
-            "units_complete": units_complete,
+        "matrix_status": "placeholder_pending_scientific_key",
+        "completeness": {
+            "units_expected": total_units_expected,
+            "units_received": total_units_received,
+            "units_complete": total_units_complete,
             "units_missing": len(missing_units),
             "missing_units": missing_units,
-            "can_score_fully": units_complete == 36
+            "completeness_percent": completeness_percent,
+            "can_score_fully": total_units_complete == total_units_expected,
         },
-        "blocks": blocks_summary,
-        "next_step": "Aplicar matriz técnica real de score"
+        "global_score": {
+            "units_scored": total_units_scored,
+            "scoreable_percent": scored_percent,
+            "weighted_sum": global_weighted_sum,
+            "weighted_mean": global_weighted_mean,
+            "classification_stub": classification_stub,
+        },
+        "block_scores": block_scores,
+        "unit_results": unit_results,
+        "flags": flags,
+        "next_step": "Definir matriz técnica real: direção A/B, pesos e pontos de corte."
     }
