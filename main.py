@@ -142,6 +142,80 @@ SCORING_MATRIX.update({
             "Maior mandato interno de aperfeiçoamento contínuo no polo A."
         ),
     ),
+    SCORING_MATRIX.update({
+    "B2_U1": MatrixEntry(
+        block="B2",
+        label="Necessidade de aprovação",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = aprovação indispensável. "
+            "Polo B = autovalidação suficiente. "
+            "Maior dependência de aprovação externa no polo A."
+        ),
+    ),
+    "B2_U2": MatrixEntry(
+        block="B2",
+        label="Comparação social como referência central",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = comparação frequente como guia. "
+            "Polo B = referência interna mais estável. "
+            "Maior autoavaliação baseada em contraste social no polo A."
+        ),
+    ),
+    "B2_U3": MatrixEntry(
+        block="B2",
+        label="Medo de desapontar expectativas",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = medo de desapontar os outros. "
+            "Polo B = liberdade relativa diante de expectativas. "
+            "Maior conformidade por medo de decepcionar no polo A."
+        ),
+    ),
+    "B2_U4": MatrixEntry(
+        block="B2",
+        label="Imagem social e necessidade de boa impressão",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = boa impressão como necessidade. "
+            "Polo B = autenticidade com menor dependência de imagem. "
+            "Maior hipervigilância reputacional no polo A."
+        ),
+    ),
+    "B2_U5": MatrixEntry(
+        block="B2",
+        label="Dificuldade de sustentar discordância",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = cede para evitar desaprovação. "
+            "Polo B = sustenta discordância com regulação. "
+            "Maior dificuldade de diferenciação interpessoal no polo A."
+        ),
+    ),
+    "B2_U6": MatrixEntry(
+        block="B2",
+        label="Reconhecimento externo como prova de valor",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = valor confirmado por reconhecimento. "
+            "Polo B = valor não dependente de visibilidade. "
+            "Maior dependência de elogio, destaque e confirmação externa no polo A."
+        ),
+    ),
+})
 })# Exemplo de como nós vamos sobrescrever depois:
 # SCORING_MATRIX["B1_U1"] = MatrixEntry(
 #     block="B1",
