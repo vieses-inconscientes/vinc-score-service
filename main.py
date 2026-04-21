@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 app = FastAPI(
     title="vinc-score-service",
     version="2.0.0",
-    description="Serviço inicial de validação, completude e score base do V'inC."
+    description="Serviço inicial de validação, completude e score base do V'inC.",
 )
 
 BLOCKS = [f"B{i}" for i in range(1, 7)]
@@ -44,8 +44,8 @@ class MatrixEntry(BaseModel):
     block: str
     label: str
     weight: float = 1.0
-    pole_A_direction: Optional[int] = None   # Ex.: +1 ou -1
-    pole_B_direction: Optional[int] = None   # Ex.: +1 ou -1
+    pole_A_direction: Optional[int] = None
+    pole_B_direction: Optional[int] = None
     notes: Optional[str] = None
 
 
@@ -61,7 +61,7 @@ def build_placeholder_matrix() -> Dict[str, MatrixEntry]:
                 weight=1.0,
                 pole_A_direction=None,
                 pole_B_direction=None,
-                notes="Direção ainda não definida na matriz técnica."
+                notes="Direção ainda não definida na matriz técnica.",
             )
 
     return matrix
@@ -142,7 +142,9 @@ SCORING_MATRIX.update({
             "Maior mandato interno de aperfeiçoamento contínuo no polo A."
         ),
     ),
-    SCORING_MATRIX.update({
+})
+
+SCORING_MATRIX.update({
     "B2_U1": MatrixEntry(
         block="B2",
         label="Necessidade de aprovação",
@@ -216,15 +218,6 @@ SCORING_MATRIX.update({
         ),
     ),
 })
-})# Exemplo de como nós vamos sobrescrever depois:
-# SCORING_MATRIX["B1_U1"] = MatrixEntry(
-#     block="B1",
-#     label="Perfeccionismo / autoexigência",
-#     weight=1.0,
-#     pole_A_direction=+1,
-#     pole_B_direction=-1,
-#     notes="Exemplo provisório"
-# )
 
 
 # =========================================================
@@ -244,19 +237,17 @@ def unit_is_complete(unit: Optional[UnitPayload]) -> bool:
     )
 
 
-def matrix_entry_is_defined(entry: Optional[MatrixEntry]) -> bool:
-    if entry is None:
-        return False
+def matrix_entry_is_defined(entry: MatrixEntry) -> bool:
     return (
         entry.pole_A_direction in (-1, 1)
         and entry.pole_B_direction in (-1, 1)
     )
 
 
-def chosen_direction(entry: MatrixEntry, chosen_pole: str) -> Optional[int]:
-    if chosen_pole == "A":
+def chosen_direction(unit: UnitPayload, entry: MatrixEntry) -> Optional[int]:
+    if unit.polo_escolhido == "A":
         return entry.pole_A_direction
-    if chosen_pole == "B":
+    if unit.polo_escolhido == "B":
         return entry.pole_B_direction
     return None
 
@@ -265,106 +256,149 @@ def compute_classification_stub(weighted_mean: Optional[float]) -> Optional[str]
     if weighted_mean is None:
         return None
 
-    if weighted_mean <= -3.5:
-        return "tendencia_protetiva_provisoria"
-    if weighted_mean <= -1.5:
-        return "faixa_protetiva_moderada_provisoria"
-    if weighted_mean < 1.5:
-        return "faixa_intermediaria_provisoria"
-    if weighted_mean < 3.5:
+    if weighted_mean <= -2.5:
+        return "faixa_flexibilidade_elevada_provisoria"
+    if weighted_mean < -0.5:
+        return "faixa_flexibilidade_moderada_provisoria"
+    if weighted_mean <= 0.5:
+        return "faixa_neutra_provisoria"
+    if weighted_mean < 2.5:
         return "faixa_rigidez_moderada_provisoria"
-    return "tendencia_rigida_provisoria"
+    return "faixa_rigidez_elevada_provisoria"
+
+
+def compute_matrix_status() -> str:
+    total = len(SCORING_MATRIX)
+    defined = sum(
+        1 for entry in SCORING_MATRIX.values()
+        if matrix_entry_is_defined(entry)
+    )
+
+    if defined == 0:
+        return "placeholder_pending_scientific_key"
+    if defined < total:
+        return "partial_real_matrix"
+    return "real_matrix_complete"
 
 
 def analyze_unit(unit_key: str, payload_unit: Optional[UnitPayload]) -> Dict[str, Any]:
-    matrix_entry = SCORING_MATRIX.get(unit_key)
+    entry = SCORING_MATRIX[unit_key]
 
-    result: Dict[str, Any] = {
+    if payload_unit is None:
+        return {
+            "unit_key": unit_key,
+            "block": entry.block,
+            "label": entry.label,
+            "weight": entry.weight,
+            "chosen_pole": None,
+            "nonchosen_likert": None,
+            "completeness_status": "missing",
+            "score_status": "not_scored",
+            "direction_used": None,
+            "raw_directional_score": None,
+            "weighted_score": None,
+            "notes": ["Unidade ausente na submissão."],
+        }
+
+    if not unit_is_complete(payload_unit):
+        return {
+            "unit_key": unit_key,
+            "block": entry.block,
+            "label": entry.label,
+            "weight": entry.weight,
+            "chosen_pole": payload_unit.polo_escolhido,
+            "nonchosen_likert": payload_unit.valor_likert_nao_escolhido,
+            "completeness_status": "incomplete",
+            "score_status": "not_scored",
+            "direction_used": None,
+            "raw_directional_score": None,
+            "weighted_score": None,
+            "notes": ["Unidade presente, mas incompleta."],
+        }
+
+    if not matrix_entry_is_defined(entry):
+        return {
+            "unit_key": unit_key,
+            "block": entry.block,
+            "label": entry.label,
+            "weight": entry.weight,
+            "chosen_pole": payload_unit.polo_escolhido,
+            "nonchosen_likert": payload_unit.valor_likert_nao_escolhido,
+            "completeness_status": "complete",
+            "score_status": "matrix_pending",
+            "direction_used": None,
+            "raw_directional_score": None,
+            "weighted_score": None,
+            "notes": ["Direções A/B ainda não definidas na matriz técnica."],
+        }
+
+    direction = chosen_direction(payload_unit, entry)
+    likert_value = payload_unit.valor_likert_nao_escolhido or 0
+    raw_directional_score = direction * likert_value
+    weighted_score = round(raw_directional_score * entry.weight, 4)
+
+    return {
         "unit_key": unit_key,
-        "block": unit_key.split("_")[0],
-        "label": matrix_entry.label if matrix_entry else None,
-        "weight": matrix_entry.weight if matrix_entry else None,
-        "chosen_pole": None,
-        "nonchosen_likert": None,
-        "completeness_status": None,
-        "score_status": None,
-        "direction_used": None,
-        "raw_directional_score": None,
-        "weighted_score": None,
+        "block": entry.block,
+        "label": entry.label,
+        "weight": entry.weight,
+        "chosen_pole": payload_unit.polo_escolhido,
+        "nonchosen_likert": payload_unit.valor_likert_nao_escolhido,
+        "completeness_status": "complete",
+        "score_status": "scored",
+        "direction_used": direction,
+        "raw_directional_score": raw_directional_score,
+        "weighted_score": weighted_score,
         "notes": [],
     }
 
-    if payload_unit is None:
-        result["completeness_status"] = "missing_key"
-        result["score_status"] = "not_scored"
-        result["notes"].append("Unidade ausente no payload.")
-        return result
-
-    result["chosen_pole"] = payload_unit.polo_escolhido
-    result["nonchosen_likert"] = payload_unit.valor_likert_nao_escolhido
-
-    if not unit_is_complete(payload_unit):
-        result["completeness_status"] = "incomplete"
-        result["score_status"] = "not_scored"
-        result["notes"].append("Unidade presente, mas incompleta.")
-        return result
-
-    result["completeness_status"] = "complete"
-
-    if matrix_entry is None:
-        result["score_status"] = "matrix_missing"
-        result["notes"].append("Unidade sem entrada na matriz técnica.")
-        return result
-
-    if not matrix_entry_is_defined(matrix_entry):
-        result["score_status"] = "matrix_pending"
-        result["notes"].append("Direções A/B ainda não definidas na matriz técnica.")
-        return result
-
-    direction = chosen_direction(matrix_entry, payload_unit.polo_escolhido)
-    if direction is None:
-        result["score_status"] = "direction_missing"
-        result["notes"].append("Não foi possível determinar a direção da unidade.")
-        return result
-
-    raw_directional_score = payload_unit.valor_likert_nao_escolhido * direction
-    weighted_score = raw_directional_score * matrix_entry.weight
-
-    result["score_status"] = "scored"
-    result["direction_used"] = direction
-    result["raw_directional_score"] = raw_directional_score
-    result["weighted_score"] = round(weighted_score, 4)
-
-    return result
-
 
 def summarize_block(block: str, unit_results: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-    block_unit_keys = [f"{block}_U{u}" for u in range(1, UNITS_PER_BLOCK + 1)]
-    block_units = [unit_results[key] for key in block_unit_keys]
+    block_units = [
+        result for result in unit_results.values()
+        if result["block"] == block
+    ]
 
-    units_expected = len(block_units)
-    units_complete = sum(1 for u in block_units if u["completeness_status"] == "complete")
-    units_scored = sum(1 for u in block_units if u["score_status"] == "scored")
-    units_missing = [u["unit_key"] for u in block_units if u["completeness_status"] != "complete"]
+    units_expected = UNITS_PER_BLOCK
+    units_complete = sum(
+        1 for item in block_units
+        if item["completeness_status"] == "complete"
+    )
+    units_scored = sum(
+        1 for item in block_units
+        if item["score_status"] == "scored"
+    )
 
-    scored_values = [u["weighted_score"] for u in block_units if u["weighted_score"] is not None]
+    missing_units = [
+        item["unit_key"] for item in block_units
+        if item["completeness_status"] != "complete"
+    ]
 
-    block_weighted_sum = round(sum(scored_values), 4) if scored_values else None
-    block_weighted_mean = round(sum(scored_values) / len(scored_values), 4) if scored_values else None
-    completeness_percent = round((units_complete / units_expected) * 100, 2) if units_expected else 0.0
-    scoreable_percent = round((units_scored / units_expected) * 100, 2) if units_expected else 0.0
+    scored_values = [
+        item["weighted_score"] for item in block_units
+        if item["weighted_score"] is not None
+    ]
+
+    weighted_sum = round(sum(scored_values), 4) if scored_values else None
+    weighted_mean = (
+        round(sum(scored_values) / len(scored_values), 4)
+        if scored_values else None
+    )
+
+    completeness_percent = round((units_complete / units_expected) * 100, 2)
+    scoreable_percent = round((units_scored / units_expected) * 100, 2)
 
     return {
         "block": block,
         "units_expected": units_expected,
         "units_complete": units_complete,
         "units_scored": units_scored,
-        "units_missing": len(units_missing),
-        "missing_units": units_missing,
+        "units_missing": len(missing_units),
+        "missing_units": missing_units,
         "completeness_percent": completeness_percent,
         "scoreable_percent": scoreable_percent,
-        "weighted_sum": block_weighted_sum,
-        "weighted_mean": block_weighted_mean,
+        "weighted_sum": weighted_sum,
+        "weighted_mean": weighted_mean,
     }
 
 
@@ -380,28 +414,28 @@ def build_flags(
         flags.append({
             "code": "status_not_completed",
             "severity": "medium",
-            "message": "O status recebido não é 'completed'."
+            "message": "O status recebido não é 'completed'.",
         })
 
     if total_units_complete < total_units_expected:
         flags.append({
             "code": "partial_submission",
             "severity": "medium",
-            "message": "A submissão está incompleta."
+            "message": "A submissão está incompleta.",
         })
 
     if total_units_scored == 0:
         flags.append({
             "code": "matrix_pending",
             "severity": "info",
-            "message": "Nenhuma unidade foi pontuada porque a matriz técnica ainda não está definida."
+            "message": "Nenhuma unidade foi pontuada porque a matriz técnica ainda não está definida.",
         })
 
     if total_units_complete > 0 and total_units_scored < total_units_complete:
         flags.append({
             "code": "complete_but_not_scored",
             "severity": "info",
-            "message": "Há unidades completas, mas ainda não pontuáveis por falta de direção técnica."
+            "message": "Há unidades completas, mas ainda não pontuáveis por falta de direção técnica.",
         })
 
     return flags
@@ -415,7 +449,7 @@ def build_flags(
 def root() -> Dict[str, str]:
     return {
         "service": "vinc-score-service",
-        "status": "running"
+        "status": "running",
     }
 
 
@@ -423,7 +457,7 @@ def root() -> Dict[str, str]:
 def health() -> Dict[str, str]:
     return {
         "status": "ok",
-        "service": "vinc-score-service"
+        "service": "vinc-score-service",
     }
 
 
@@ -458,7 +492,10 @@ def score(payload: ScoreRequest) -> Dict[str, Any]:
     ]
 
     global_weighted_sum = round(sum(scored_values), 4) if scored_values else None
-    global_weighted_mean = round(sum(scored_values) / len(scored_values), 4) if scored_values else None
+    global_weighted_mean = (
+        round(sum(scored_values) / len(scored_values), 4)
+        if scored_values else None
+    )
     classification_stub = compute_classification_stub(global_weighted_mean)
 
     completeness_percent = round((total_units_complete / total_units_expected) * 100, 2)
@@ -482,7 +519,7 @@ def score(payload: ScoreRequest) -> Dict[str, Any]:
         "methodology_version": payload.methodology_version,
         "algorithm_version": "score_v2_base_0_1_0",
         "status": "accepted",
-        "matrix_status": "placeholder_pending_scientific_key",
+        "matrix_status": compute_matrix_status(),
         "completeness": {
             "units_expected": total_units_expected,
             "units_received": total_units_received,
@@ -502,5 +539,8 @@ def score(payload: ScoreRequest) -> Dict[str, Any]:
         "block_scores": block_scores,
         "unit_results": unit_results,
         "flags": flags,
-        "next_step": "Definir matriz técnica real: direção A/B, pesos e pontos de corte."
+        "next_step": (
+            "Continuar preenchimento da matriz técnica real: direção A/B, pesos, "
+            "interpretação e pontos de corte."
+        ),
     }
