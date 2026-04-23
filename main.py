@@ -219,6 +219,306 @@ SCORING_MATRIX.update({
     ),
 })
 
+SCORING_MATRIX.update({
+    "B3_U1": MatrixEntry(
+        block="B3",
+        label="Pedido de ajuda e força",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = pedir ajuda mostra fraqueza. "
+            "Polo B = pedir ajuda também pode ser sinal de maturidade. "
+            "Maior autossuficiência defensiva e aversão à vulnerabilidade no polo A."
+        ),
+    ),
+    "B3_U2": MatrixEntry(
+        block="B3",
+        label="Expressão emocional e força",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = demonstrar emoção não diminui a minha força. "
+            "Polo B = demonstrar emoção em público me faz parecer fraco(a). "
+            "Maior rigidez da imagem de força e inibição emocional no polo B."
+        ),
+    ),
+    "B3_U3": MatrixEntry(
+        block="B3",
+        label="Fragilidade visível e valor",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = ninguém deve perceber quando eu estou mal. "
+            "Polo B = consigo mostrar fragilidade sem perder meu valor. "
+            "Maior necessidade de ocultação do sofrimento e proteção por imagem no polo A."
+        ),
+    ),
+    "B3_U4": MatrixEntry(
+        block="B3",
+        label="Limites e obrigação de força",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = reconhecer meus limites também é uma forma de força. "
+            "Polo B = costumo sentir que preciso ser forte o tempo todo. "
+            "Maior ideal rígido de força contínua e negação de limite no polo B."
+        ),
+    ),
+    "B3_U5": MatrixEntry(
+        block="B3",
+        label="Repressão versus acolhimento emocional",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = melhor reprimir sentimentos difíceis do que demonstrá-los. "
+            "Polo B = sentimentos difíceis precisam ser acolhidos, não apenas reprimidos. "
+            "Maior repressão afetiva e distanciamento interno no polo A."
+        ),
+    ),
+    "B3_U6": MatrixEntry(
+        block="B3",
+        label="Vulnerabilidade e risco relacional",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = ser vulnerável também pode fortalecer vínculos e autoconhecimento. "
+            "Polo B = ser vulnerável me coloca em risco. "
+            "Maior leitura de vulnerabilidade como ameaça e fechamento relacional no polo B."
+        ),
+    ),
+})
+
+SCORING_MATRIX.update({
+    "B4_U1": MatrixEntry(
+        block="B4",
+        label="Julgamento apressado por aparência",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = prefiro conhecer melhor a pessoa antes de formar uma opinião. "
+            "Polo B = costumo formar opinião muito rápido, pela aparência. "
+            "Maior julgamento precipitado por traço superficial no polo B."
+        ),
+    ),
+    "B4_U2": MatrixEntry(
+        block="B4",
+        label="Inferência por sotaque",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = quando ouço um sotaque diferente, já imagino como a pessoa é. "
+            "Polo B = o sotaque de alguém não define seu valor nem sua capacidade. "
+            "Maior inferência estereotipada por marcador linguístico no polo A."
+        ),
+    ),
+    "B4_U3": MatrixEntry(
+        block="B4",
+        label="Aparência e competência",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = aparência não é um bom critério para avaliar competência. "
+            "Polo B = quando alguém é bonito, tendo a vê-lo como mais competente. "
+            "Maior viés halo associado à aparência no polo B."
+        ),
+    ),
+    "B4_U4": MatrixEntry(
+        block="B4",
+        label="Segurança na fala e verdade percebida",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = quando alguém fala com muita segurança, tendo a achar que está certo. "
+            "Polo B = falar com segurança não garante que alguém esteja certo. "
+            "Maior associação entre assertividade aparente e verdade no polo A."
+        ),
+    ),
+    "B4_U5": MatrixEntry(
+        block="B4",
+        label="Forma de falar e respeito atribuído",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = a forma de falar não define quem merece mais respeito. "
+            "Polo B = quem fala 'corretamente' merece mais respeito. "
+            "Maior hierarquização valorativa pela norma de fala no polo B."
+        ),
+    ),
+    "B4_U6": MatrixEntry(
+        block="B4",
+        label="Semelhança e confiança social",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = confio mais em pessoas que se parecem comigo. "
+            "Polo B = consigo reconhecer valor também em pessoas muito diferentes de mim. "
+            "Maior preferência por semelhança e fechamento avaliativo no polo A."
+        ),
+    ),
+})
+
+SCORING_MATRIX.update({
+    "B5_U1": MatrixEntry(
+        block="B5",
+        label="Peso da informação inicial no julgamento",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = as primeiras informações pesam mais no meu julgamento. "
+            "Polo B = consigo rever meu julgamento quando surgem novas informações. "
+            "Maior ancoragem inicial e menor revisão posterior no polo A."
+        ),
+    ),
+    "B5_U2": MatrixEntry(
+        block="B5",
+        label="Primeira impressão e revisão posterior",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = minha primeira impressão pode mudar quando conheço melhor alguém. "
+            "Polo B = minha primeira impressão costuma mostrar como a pessoa realmente é. "
+            "Maior essencialização da impressão inicial no polo B."
+        ),
+    ),
+    "B5_U3": MatrixEntry(
+        block="B5",
+        label="Abertura a informação contraditória",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = prefiro evitar informações que contradizem o que acredito. "
+            "Polo B = costumo considerar informações que desafiam o que acredito. "
+            "Maior fechamento confirmatório e evitação de dissonância no polo A."
+        ),
+    ),
+    "B5_U4": MatrixEntry(
+        block="B5",
+        label="Mudança de opinião e suspeita",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = mudar de opinião pode ser sinal de reflexão, não de fraqueza. "
+            "Polo B = quando alguém muda de opinião depois de ouvir os outros, eu desconfio. "
+            "Maior rigidez frente à revisão de posição e suspeita da mudança no polo B."
+        ),
+    ),
+    "B5_U5": MatrixEntry(
+        block="B5",
+        label="Discordância e fechamento defensivo",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = quando discordam de mim, fico na defensiva com facilidade. "
+            "Polo B = consigo ouvir discordâncias sem me fechar imediatamente. "
+            "Maior defensividade diante de divergência no polo A."
+        ),
+    ),
+    "B5_U6": MatrixEntry(
+        block="B5",
+        label="Diálogo versus necessidade de estar certo",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = preservar o diálogo é mais importante do que provar que estou certo. "
+            "Polo B = estar certo às vezes importa mais do que manter o diálogo. "
+            "Maior rigidez argumentativa e primazia do acerto sobre o vínculo no polo B."
+        ),
+    ),
+})
+
+SCORING_MATRIX.update({
+    "B6_U1": MatrixEntry(
+        block="B6",
+        label="Respeito versus crítica como forma de mudança",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = as pessoas tendem a mudar melhor quando se sentem respeitadas. "
+            "Polo B = criticar é uma boa forma de fazer os outros corrigirem seus erros. "
+            "Maior adesão à correção crítica como via preferencial de mudança no polo B."
+        ),
+    ),
+    "B6_U2": MatrixEntry(
+        block="B6",
+        label="Punição e colocação de limites",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = a punição é uma boa forma de disciplinar. "
+            "Polo B = consigo colocar limites sem depender de punição. "
+            "Maior orientação punitiva na regulação de conduta no polo A."
+        ),
+    ),
+    "B6_U3": MatrixEntry(
+        block="B6",
+        label="Erro, punição e aprendizagem",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = errar também pode ser oportunidade de responsabilização e aprendizado. "
+            "Polo B = quem erra deve ser punido. "
+            "Maior leitura punitiva do erro, com menor abertura à aprendizagem, no polo B."
+        ),
+    ),
+    "B6_U4": MatrixEntry(
+        block="B6",
+        label="Liderança por temor ou firmeza regulada",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = um bom líder precisa ser temido. "
+            "Polo B = um bom líder pode ser firme sem ser temido. "
+            "Maior associação entre liderança eficaz e medo no polo A."
+        ),
+    ),
+    "B6_U5": MatrixEntry(
+        block="B6",
+        label="Negociação versus ultimato no conflito",
+        weight=1.0,
+        pole_A_direction=-1,
+        pole_B_direction=+1,
+        notes=(
+            "Polo A = conflitos costumam ser melhor resolvidos com negociação do que com ultimatos. "
+            "Polo B = ultimatos costumam ser a melhor forma de resolver conflitos. "
+            "Maior preferência por coerção e fechamento impositivo no polo B."
+        ),
+    ),
+    "B6_U6": MatrixEntry(
+        block="B6",
+        label="Ceder com limite versus ceder como risco de exploração",
+        weight=1.0,
+        pole_A_direction=+1,
+        pole_B_direction=-1,
+        notes=(
+            "Polo A = se eu cedo uma vez, as pessoas tendem a se aproveitar. "
+            "Polo B = consigo ceder em algumas situações sem perder meus limites. "
+            "Maior leitura defensiva da cessão como perda de proteção no polo A."
+        ),
+    ),
+})
+
 
 # =========================================================
 # HELPERS
@@ -410,11 +710,13 @@ def build_flags(
 ) -> List[Dict[str, Any]]:
     flags: List[Dict[str, Any]] = []
 
-    if payload.status.lower() != "completed":
+    normalized_status = payload.status.strip().lower()
+
+    if normalized_status not in {"completed", "concluido", "concluído"}:
         flags.append({
             "code": "status_not_completed",
             "severity": "medium",
-            "message": "O status recebido não é 'completed'.",
+            "message": "O status recebido não indica conclusão final da submissão.",
         })
 
     if total_units_complete < total_units_expected:
