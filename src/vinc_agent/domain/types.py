@@ -43,6 +43,12 @@ class AssetRef:
     source_type: str
     expected_mime: str | None = None
 
+    def __post_init__(self) -> None:
+        if not self.canonical_id or not self.asset_key or not self.provider_file_id:
+            raise ValueError(StableCode.E_ASSET_NOT_ALLOWLISTED)
+        if self.provider != "gdrive":
+            raise ValueError(StableCode.E_ASSET_NOT_ALLOWLISTED)
+
 
 @dataclass(frozen=True, slots=True)
 class PolicySnapshot:
@@ -51,6 +57,10 @@ class PolicySnapshot:
     target_corpus: str
     allowed_scopes: frozenset[str]
     sensitivity_ceiling: str
+
+    def __post_init__(self) -> None:
+        if not self.policy_snapshot_id or not self.policy_hash or not self.target_corpus:
+            raise ValueError(StableCode.E_ACCESS_POLICY)
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +71,16 @@ class ProviderPayload:
     provider_revision_hint: str | None = None
     metadata: Mapping[str, str] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        if not self.provider_file_id or not self.mime or not self.content:
+            raise ValueError(StableCode.E_FETCH_INTEGRITY)
+
+    def assert_matches(self, asset: AssetRef) -> None:
+        if self.provider_file_id != asset.provider_file_id:
+            raise ValueError(StableCode.E_FETCH_INTEGRITY)
+        if asset.expected_mime and self.mime != asset.expected_mime:
+            raise ValueError(StableCode.E_FETCH_INTEGRITY)
+
 
 @dataclass(frozen=True, slots=True)
 class FingerprintResult:
@@ -70,6 +90,11 @@ class FingerprintResult:
     provider_revision_hint: str | None
     algorithm_version: str
 
+    def __post_init__(self) -> None:
+        hashes = (self.raw_sha256, self.normalized_sha256, self.material_fingerprint)
+        if any(len(value) != 64 for value in hashes):
+            raise ValueError(StableCode.E_FINGERPRINT_INVALID)
+
 
 @dataclass(frozen=True, slots=True)
 class Section:
@@ -77,6 +102,25 @@ class Section:
     heading_path: tuple[str, ...]
     source_locator: str
     text: str
+
+
+@dataclass(frozen=True, slots=True)
+class NormalizedDocument:
+    canonical_id: str
+    asset_key: str
+    source_revision_id: str
+    text: str
+    sections: Sequence[Section]
+    excluded_content_present: bool = False
+    runtime_instruction_present: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.canonical_id or not self.asset_key or not self.source_revision_id:
+            raise ValueError(StableCode.E_EXTRACTION_INCOMPLETE)
+        if not self.text.strip() or not self.sections:
+            raise ValueError(StableCode.E_EXTRACTION_INCOMPLETE)
+        if self.excluded_content_present or self.runtime_instruction_present:
+            raise ValueError(StableCode.E_CONTENT_BOUNDARY)
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +146,13 @@ class ChunkBatch:
     sections: Sequence[Section]
     chunks: Sequence[Chunk]
     batch_hash: str
+
+    def __post_init__(self) -> None:
+        if not self.source_revision_id or not self.batch_hash or not self.chunks:
+            raise ValueError(StableCode.E_CHUNK_CONTRACT)
+        ordinals = [chunk.chunk_ordinal for chunk in self.chunks]
+        if ordinals != list(range(len(self.chunks))):
+            raise ValueError(StableCode.E_CHUNK_CONTRACT)
 
 
 @dataclass(frozen=True, slots=True)
