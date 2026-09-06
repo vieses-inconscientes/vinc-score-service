@@ -7,6 +7,7 @@ from vinc_agent.domain.types import (
     ChunkBatch,
     FingerprintResult,
     IngestionResult,
+    NormalizedDocument,
     PolicySnapshot,
     ProviderPayload,
     ValidationReport,
@@ -30,15 +31,15 @@ class FingerprintPort(Protocol):
 
 
 class ExtractorPort(Protocol):
-    def extract(self, payload: ProviderPayload, profile: str) -> object: ...
+    def extract(self, asset: AssetRef, payload: ProviderPayload, profile: str) -> NormalizedDocument: ...
 
 
 class ValidatorPort(Protocol):
-    def validate(self, stage_payload: object, gate_set: Sequence[str]) -> ValidationReport: ...
+    def validate(self, stage_payload: NormalizedDocument | ChunkBatch, gate_set: Sequence[str]) -> ValidationReport: ...
 
 
 class ChunkerPort(Protocol):
-    def build_chunks(self, normalized_document: object, profile: str) -> ChunkBatch: ...
+    def build_chunks(self, normalized_document: NormalizedDocument, profile: str) -> ChunkBatch: ...
 
 
 class IndexerPort(Protocol):
