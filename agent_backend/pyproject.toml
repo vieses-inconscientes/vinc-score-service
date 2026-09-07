@@ -7,10 +7,7 @@ name = "vinc-agent-backend"
 version = "0.1.0"
 description = "Deterministic ingestion and retrieval core for V'inC. Agent"
 requires-python = ">=3.12"
-dependencies = [
-  "flask>=3.1,<4",
-  "gunicorn>=23,<24",
-]
+dependencies = ["gunicorn>=23,<24"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3", "ruff>=0.6", "mypy>=1.11"]
