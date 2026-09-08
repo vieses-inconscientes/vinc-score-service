@@ -9,10 +9,15 @@ from .external_contracts import AllowlistedRegistryReader
 
 
 _TRUE = {"TRUE", "true", "1", "YES", "yes"}
+_AGENT_CORPORA = frozenset({"CORPUS_PUBLICO", "CORPUS_INTERNO"})
 
 
 def _is_true(value: str | None) -> bool:
     return (value or "").strip() in _TRUE
+
+
+def _tokens(value: str | None) -> frozenset[str]:
+    return frozenset(part.strip() for part in (value or "").split("|") if part.strip())
 
 
 @dataclass(slots=True)
@@ -57,19 +62,37 @@ class CanonicalRegistryAdapter:
 
 @dataclass(slots=True)
 class CanonicalPolicyAdapter:
-    """Build an immutable run policy from the same canonical registry snapshot."""
+    """Build immutable policies from the live canonical registry schema."""
 
     registry: CanonicalRegistryAdapter
 
     @staticmethod
-    def _row_is_authorized(row: Mapping[str, str]) -> bool:
+    def _row_is_agent_authorized(row: Mapping[str, str]) -> bool:
         if not _is_true(row.get("agent_index_authorized")):
             return False
-        if not _is_true(row.get("agent_access_scope")):
+        if not _tokens(row.get("agent_access_scope")):
             return False
         if row.get("ingestion_mode", "").strip() == "NONE":
             return False
-        if row.get("target_corpus", "").strip() == "FORA_DO_CORPUS_AGENT":
+        if not (_tokens(row.get("target_corpus")) & _AGENT_CORPORA):
+            return False
+        return True
+
+    @classmethod
+    def _row_is_authorized_for(
+        cls,
+        row: Mapping[str, str],
+        *,
+        requester_scope: str,
+        target_corpus: str,
+    ) -> bool:
+        if not cls._row_is_agent_authorized(row):
+            return False
+        if requester_scope not in _tokens(row.get("agent_access_scope")):
+            return False
+        if target_corpus not in _tokens(row.get("target_corpus")):
+            return False
+        if target_corpus == "CORPUS_PUBLICO" and row.get("sensitivity", "").strip() != "PUBLICO":
             return False
         return True
 
@@ -78,11 +101,39 @@ class CanonicalPolicyAdapter:
         allowed = frozenset(
             row.get("drive_file_id", "").strip()
             for row in rows
-            if self._row_is_authorized(row) and row.get("drive_file_id", "").strip()
+            if self._row_is_agent_authorized(row) and row.get("drive_file_id", "").strip()
         )
         material = "\n".join(sorted(allowed)).encode("utf-8")
         return PolicySnapshot(policy_hash=sha256(material).hexdigest(), allowed_asset_ids=allowed)
 
+    def snapshot_for(self, requester_scope: str, target_corpus: str) -> PolicySnapshot:
+        scope = requester_scope.strip()
+        corpus = target_corpus.strip()
+        if not scope or not corpus:
+            raise ValueError("requester_scope and target_corpus are required")
+        rows = self.registry._rows()
+        allowed = frozenset(
+            row.get("drive_file_id", "").strip()
+            for row in rows
+            if self._row_is_authorized_for(row, requester_scope=scope, target_corpus=corpus)
+            and row.get("drive_file_id", "").strip()
+        )
+        material = "\n".join((f"scope={scope}", f"corpus={corpus}", *sorted(allowed))).encode("utf-8")
+        return PolicySnapshot(
+            policy_hash=sha256(material).hexdigest(),
+            allowed_asset_ids=allowed,
+            requester_scope=scope,
+            target_corpus=corpus,
+        )
+
     def authorize_asset(self, asset: AssetRef, snapshot: PolicySnapshot) -> bool:
         row = self.registry.load_row(asset.canonical_object_id)
-        return self._row_is_authorized(row) and snapshot.allows(asset)
+        if snapshot.is_scope_bound:
+            authorized = self._row_is_authorized_for(
+                row,
+                requester_scope=snapshot.requester_scope or "",
+                target_corpus=snapshot.target_corpus or "",
+            )
+        else:
+            authorized = self._row_is_agent_authorized(row)
+        return authorized and snapshot.allows(asset)

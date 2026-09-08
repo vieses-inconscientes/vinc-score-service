@@ -51,6 +51,16 @@ class AssetRef:
 class PolicySnapshot:
     policy_hash: str
     allowed_asset_ids: frozenset[str]
+    requester_scope: str | None = None
+    target_corpus: str | None = None
+
+    def __post_init__(self) -> None:
+        if bool(self.requester_scope) != bool(self.target_corpus):
+            raise ValueError("requester_scope and target_corpus must be bound together")
+
+    @property
+    def is_scope_bound(self) -> bool:
+        return self.requester_scope is not None and self.target_corpus is not None
 
     def allows(self, asset: AssetRef) -> bool:
         return asset.source_asset_id in self.allowed_asset_ids
