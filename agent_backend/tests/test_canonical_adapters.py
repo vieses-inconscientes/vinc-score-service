@@ -1,5 +1,6 @@
 from vinc_agent.canonical_adapters import CanonicalPolicyAdapter, CanonicalRegistryAdapter
 from vinc_agent.external_contracts import AllowlistedRegistryReader, RegistryConfig
+from vinc_agent.retrieval import RetrievalRequest
 
 
 ROWS = [
@@ -61,6 +62,20 @@ def test_public_policy_hash_is_scope_and_corpus_bound():
     assert internal.allowed_asset_ids == frozenset(
         {"DOC-CARTA", "SHEET-URLS", "SHEET-GLOSSARIO", "FOLDER-GOLDEN", "DOC-ELEMENTOR", "DOC-VISUAL"}
     )
+
+
+def test_public_retrieval_filter_uses_same_scoped_canonical_policy():
+    _, policy = adapters()
+    request = RetrievalRequest("vieses", "PUBLICO", "CORPUS_PUBLICO")
+    candidate_filter = policy.filter_candidate_scope(request)
+    snapshot = policy.snapshot_for("PUBLICO", "CORPUS_PUBLICO")
+
+    assert candidate_filter.allowed_canonical_ids == frozenset(
+        {"VINC-CAN-001", "VINC-CAN-003", "VINC-CAN-004"}
+    )
+    assert candidate_filter.requester_scope == "PUBLICO"
+    assert candidate_filter.target_corpus == "CORPUS_PUBLICO"
+    assert candidate_filter.policy_hash == snapshot.policy_hash
 
 
 def test_restricted_and_historical_sources_never_enter_agent_snapshot():

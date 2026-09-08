@@ -6,6 +6,7 @@ from typing import Mapping, Sequence
 
 from .domain import AssetRef, PolicySnapshot
 from .external_contracts import AllowlistedRegistryReader
+from .retrieval import CandidateFilter, RetrievalRequest
 
 
 _TRUE = {"TRUE", "true", "1", "YES", "yes"}
@@ -106,24 +107,67 @@ class CanonicalPolicyAdapter:
         material = "\n".join(sorted(allowed)).encode("utf-8")
         return PolicySnapshot(policy_hash=sha256(material).hexdigest(), allowed_asset_ids=allowed)
 
+    @classmethod
+    def _scoped_rows(
+        cls,
+        rows: Sequence[Mapping[str, str]],
+        *,
+        requester_scope: str,
+        target_corpus: str,
+    ) -> tuple[Mapping[str, str], ...]:
+        return tuple(
+            row
+            for row in rows
+            if row.get("canonical_id", "").strip()
+            and row.get("drive_file_id", "").strip()
+            and cls._row_is_authorized_for(
+                row, requester_scope=requester_scope, target_corpus=target_corpus
+            )
+        )
+
+    @staticmethod
+    def _scoped_policy_hash(
+        requester_scope: str,
+        target_corpus: str,
+        rows: Sequence[Mapping[str, str]],
+    ) -> str:
+        bindings = sorted(
+            f"{row.get('canonical_id', '').strip()}={row.get('drive_file_id', '').strip()}"
+            for row in rows
+        )
+        material = "\n".join(
+            (f"scope={requester_scope}", f"corpus={target_corpus}", *bindings)
+        ).encode("utf-8")
+        return sha256(material).hexdigest()
+
     def snapshot_for(self, requester_scope: str, target_corpus: str) -> PolicySnapshot:
         scope = requester_scope.strip()
         corpus = target_corpus.strip()
         if not scope or not corpus:
             raise ValueError("requester_scope and target_corpus are required")
-        rows = self.registry._rows()
-        allowed = frozenset(
-            row.get("drive_file_id", "").strip()
-            for row in rows
-            if self._row_is_authorized_for(row, requester_scope=scope, target_corpus=corpus)
-            and row.get("drive_file_id", "").strip()
+        eligible = self._scoped_rows(
+            self.registry._rows(), requester_scope=scope, target_corpus=corpus
         )
-        material = "\n".join((f"scope={scope}", f"corpus={corpus}", *sorted(allowed))).encode("utf-8")
         return PolicySnapshot(
-            policy_hash=sha256(material).hexdigest(),
-            allowed_asset_ids=allowed,
+            policy_hash=self._scoped_policy_hash(scope, corpus, eligible),
+            allowed_asset_ids=frozenset(row.get("drive_file_id", "").strip() for row in eligible),
             requester_scope=scope,
             target_corpus=corpus,
+        )
+
+    def filter_candidate_scope(self, request: RetrievalRequest) -> CandidateFilter:
+        scope = request.requester_scope.strip()
+        corpus = request.target_corpus.strip()
+        eligible = self._scoped_rows(
+            self.registry._rows(), requester_scope=scope, target_corpus=corpus
+        )
+        return CandidateFilter(
+            allowed_canonical_ids=frozenset(
+                row.get("canonical_id", "").strip() for row in eligible
+            ),
+            target_corpus=corpus,
+            requester_scope=scope,
+            policy_hash=self._scoped_policy_hash(scope, corpus, eligible),
         )
 
     def authorize_asset(self, asset: AssetRef, snapshot: PolicySnapshot) -> bool:
