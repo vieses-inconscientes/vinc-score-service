@@ -48,16 +48,28 @@ ALTER TABLE staging_chunks
 
 -- R33 closes ordinal semantics as one-based. NOT VALID avoids treating legacy
 -- pre-R33 rows as silently repaired; it is enforced for newly written rows.
+-- Drop/recreate by stable name so a controlled rerun converges to the same final state.
 ALTER TABLE staging_chunks
-    DROP CONSTRAINT IF EXISTS staging_chunks_chunk_ordinal_check;
+    DROP CONSTRAINT IF EXISTS staging_chunks_chunk_ordinal_check,
+    DROP CONSTRAINT IF EXISTS staging_chunks_chunk_ordinal_one_based_check;
 
 ALTER TABLE staging_chunks
     ADD CONSTRAINT staging_chunks_chunk_ordinal_one_based_check
     CHECK (chunk_ordinal >= 1) NOT VALID;
 
 -- Structural checks are null-tolerant for pre-R33 rows. Completeness of an R33
--- candidate is intentionally reserved for assert_staging_complete in the next
--- versioned step; no missing field is inferred here.
+-- candidate is reserved for assert_staging_complete; no missing field is inferred here.
+-- Stable-name drop/recreate makes this migration final-state idempotent and prevents
+-- a rerun from failing on duplicate constraint names.
+ALTER TABLE staging_chunks
+    DROP CONSTRAINT IF EXISTS staging_chunks_url_order_check,
+    DROP CONSTRAINT IF EXISTS staging_chunks_source_type_check,
+    DROP CONSTRAINT IF EXISTS staging_chunks_sha256_check,
+    DROP CONSTRAINT IF EXISTS staging_chunks_token_count_check,
+    DROP CONSTRAINT IF EXISTS staging_chunks_content_type_check,
+    DROP CONSTRAINT IF EXISTS staging_chunks_instruction_authority_check,
+    DROP CONSTRAINT IF EXISTS staging_chunks_url_provenance_group_check;
+
 ALTER TABLE staging_chunks
     ADD CONSTRAINT staging_chunks_url_order_check
         CHECK (canonical_url_order IS NULL OR canonical_url_order BETWEEN 1 AND 116) NOT VALID,
