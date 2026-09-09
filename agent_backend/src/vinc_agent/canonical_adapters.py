@@ -11,6 +11,12 @@ from .retrieval import CandidateFilter, RetrievalRequest
 
 _TRUE = {"TRUE", "true", "1", "YES", "yes"}
 _AGENT_CORPORA = frozenset({"CORPUS_PUBLICO", "CORPUS_INTERNO"})
+_VALID_SCOPE_CORPUS_PAIRS = frozenset(
+    {
+        ("PUBLICO", "CORPUS_PUBLICO"),
+        ("INTERNO", "CORPUS_INTERNO"),
+    }
+)
 
 
 def _is_true(value: str | None) -> bool:
@@ -88,6 +94,8 @@ class CanonicalPolicyAdapter:
         target_corpus: str,
     ) -> bool:
         if not cls._row_is_agent_authorized(row):
+            return False
+        if (requester_scope, target_corpus) not in _VALID_SCOPE_CORPUS_PAIRS:
             return False
         if requester_scope not in _tokens(row.get("agent_access_scope")):
             return False

@@ -41,10 +41,15 @@ class FakeSession:
 def sample_batch() -> ChunkBatch:
     return ChunkBatch(
         chunks=(
-            Chunk("c0", "asset-1", 0, "alpha", "h0"),
-            Chunk("c1", "asset-1", 1, "beta", "h1"),
+            Chunk("c1", "asset-1", 1, "alpha", "h1"),
+            Chunk("c2", "asset-1", 2, "beta", "h2"),
         )
     )
+
+
+def test_chunk_batch_requires_contiguous_one_based_ordinals():
+    with pytest.raises(ValueError, match="one-based"):
+        ChunkBatch(chunks=(Chunk("c0", "asset-1", 0, "alpha", "h0"),))
 
 
 def test_staging_requires_exact_embedding_coverage():

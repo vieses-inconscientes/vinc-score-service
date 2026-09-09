@@ -123,8 +123,8 @@ class ChunkBatch:
     def __post_init__(self) -> None:
         if not self.chunks:
             raise ValueError("chunk batch cannot be empty")
-        if tuple(c.ordinal for c in self.chunks) != tuple(range(len(self.chunks))):
-            raise ValueError("chunk ordinals must be contiguous and zero-based")
+        if tuple(c.ordinal for c in self.chunks) != tuple(range(1, len(self.chunks) + 1)):
+            raise ValueError("chunk ordinals must be contiguous and one-based")
 
 
 @dataclass(frozen=True, slots=True)

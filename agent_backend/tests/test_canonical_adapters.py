@@ -64,6 +64,19 @@ def test_public_policy_hash_is_scope_and_corpus_bound():
     )
 
 
+def test_cross_scope_corpus_pairs_fail_closed_even_when_row_has_both_tokens():
+    registry, policy = adapters()
+    for scope, corpus in (
+        ("PUBLICO", "CORPUS_INTERNO"),
+        ("INTERNO", "CORPUS_PUBLICO"),
+    ):
+        snapshot = policy.snapshot_for(scope, corpus)
+        candidate_filter = policy.filter_candidate_scope(RetrievalRequest("vieses", scope, corpus))
+        assert snapshot.allowed_asset_ids == frozenset()
+        assert candidate_filter.allowed_canonical_ids == frozenset()
+        assert not policy.authorize_asset(registry.load_asset("VINC-CAN-001"), snapshot)
+
+
 def test_public_retrieval_filter_uses_same_scoped_canonical_policy():
     _, policy = adapters()
     request = RetrievalRequest("vieses", "PUBLICO", "CORPUS_PUBLICO")

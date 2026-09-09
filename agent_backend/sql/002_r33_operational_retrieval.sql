@@ -1,7 +1,7 @@
--- R33 operational retrieval schema, design-only until R33 staging/promotion blockers are resolved.
--- Authority: SCHEMA_POSTGRES_V0_1 + CONTRATO_CHUNK_V0_1 + R19/R20/R21.
+-- R33 operational retrieval schema, design-only until R33 staging/promotion implementation is validated.
+-- Authority: SCHEMA_POSTGRES_V0_1 + CONTRATO_CHUNK_V0_1 + R19/R20/R21 + R33 contract closure.
 -- This migration is intentionally DDL-only: it does not ingest, promote, mutate, or expose corpus content.
--- Do not apply to Cloud SQL until the canonical staging->operational mapping is closed.
+-- Do not apply to Cloud SQL until the versioned staging/promotion implementation is complete and CI/review are green.
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -27,6 +27,10 @@ CREATE TABLE IF NOT EXISTS corpus_memberships (
     target_corpus text NOT NULL,
     access_scope text NOT NULL,
     enabled boolean NOT NULL DEFAULT FALSE,
+    CHECK (
+        (target_corpus = 'CORPUS_PUBLICO' AND access_scope = 'PUBLICO')
+        OR (target_corpus = 'CORPUS_INTERNO' AND access_scope = 'INTERNO')
+    ),
     UNIQUE (canonical_id, target_corpus, access_scope)
 );
 
@@ -36,7 +40,6 @@ CREATE INDEX IF NOT EXISTS corpus_memberships_filter_idx
 CREATE TABLE IF NOT EXISTS source_assets (
     asset_key text PRIMARY KEY,
     canonical_id text NOT NULL REFERENCES canonical_objects(canonical_id),
-    membership_id text NOT NULL REFERENCES corpus_memberships(membership_id),
     provider text NOT NULL CHECK (provider = 'gdrive'),
     provider_file_id text NOT NULL,
     source_type text NOT NULL,
@@ -187,11 +190,13 @@ CREATE TABLE IF NOT EXISTS chunk_embeddings (
 CREATE INDEX IF NOT EXISTS chunk_embeddings_chunk_idx
     ON chunk_embeddings (chunk_id);
 
--- Deliberately absent in R33 design-only migration:
---   assert_staging_complete(...)
---   promote_staging_chunks(...)
---   promote_staging_embeddings(...)
+-- Contract closure (R33):
+-- * valid membership pairs are PUBLICO/CORPUS_PUBLICO and INTERNO/CORPUS_INTERNO only;
+-- * source_assets is not bound to one membership row; memberships join through canonical_id;
+-- * chunk_ordinal is one-based end-to-end;
+-- * P07 staging must carry every source field needed by the operational chunk contract;
+--   created_at/search_tsv remain database-derived.
 --
--- R19 staging currently does not carry the complete CONTRATO_CHUNK_V0_1 metadata
--- required to create current operational rows without invention. R20 publication
--- functions remain blocked until that mapping is canonically specified and tested.
+-- Promotion functions remain intentionally absent from this DDL-only migration.
+-- They are authorized for a subsequent versioned implementation only after the enriched staging
+-- representation and assert_staging_complete are implemented and tested.

@@ -160,7 +160,7 @@ def test_missing_current_provenance_returns_none():
     assert model.resolve_current_provenance("CHK_OLD") is None
 
 
-def test_r33_operational_migration_is_ddl_only_and_keeps_promotion_blocked():
+def test_r33_operational_migration_is_ddl_only_and_membership_safe():
     migration = Path(__file__).parents[1] / "sql" / "002_r33_operational_retrieval.sql"
     text = migration.read_text(encoding="utf-8")
     required_tables = (
@@ -176,8 +176,25 @@ def test_r33_operational_migration_is_ddl_only_and_keeps_promotion_blocked():
     )
     for table in required_tables:
         assert f"CREATE TABLE IF NOT EXISTS {table}" in text
+
+    source_assets = text.split("CREATE TABLE IF NOT EXISTS source_assets", 1)[1].split(");", 1)[0]
+    assert "membership_id" not in source_assets
+    assert "target_corpus = 'CORPUS_PUBLICO' AND access_scope = 'PUBLICO'" in text
+    assert "target_corpus = 'CORPUS_INTERNO' AND access_scope = 'INTERNO'" in text
+    assert "chunk_ordinal integer NOT NULL CHECK (chunk_ordinal >= 1)" in text
+
     assert "CREATE FUNCTION promote_staging_chunks" not in text
     assert "CREATE FUNCTION promote_staging_embeddings" not in text
     assert "INSERT INTO " not in text
     assert "UPDATE " not in text
     assert "DELETE FROM " not in text
+
+
+def test_staging_to_operational_contract_is_versioned_before_promotion_code():
+    contract = Path(__file__).parents[1] / "docs" / "R33_STAGING_TO_OPERATIONAL_CONTRACT.md"
+    text = contract.read_text(encoding="utf-8")
+    assert "chunk_ordinal is one-based end-to-end" in text
+    assert "PUBLICO ↔ CORPUS_PUBLICO" in text
+    assert "INTERNO ↔ CORPUS_INTERNO" in text
+    assert "publisher MUST NOT synthesize missing governance or provenance" in text
+    assert "created_at" in text and "search_tsv" in text

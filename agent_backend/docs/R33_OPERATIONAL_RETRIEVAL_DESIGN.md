@@ -1,6 +1,8 @@
 # R33 — Operational Retrieval Design (pre-deploy)
 
-Status: **DESIGN_ONLY / DO_NOT_APPLY_TO_CLOUD_SQL**
+Status: **CONTRACT_CLOSED / IMPLEMENTATION_PENDING / DO_NOT_APPLY_TO_CLOUD_SQL**
+
+The pre-closure audit findings in this document are retained as evidence of how the runtime gap was discovered. Their staging/ordinal/membership decisions are now closed by `R33_STAGING_TO_OPERATIONAL_CONTRACT.md`. Promotion functions are still not implemented, and no database execution is authorized.
 
 Authority used for this design is intentionally limited to:
 
@@ -26,9 +28,9 @@ provenance and no web/historical fallback.
 contracts. `CONTRATO_CHUNK_V0_1` defines the fields and invariants of the
 retrievable `chunks` table.
 
-## 2. Audit findings that block deployment
+## 2. Pre-closure audit findings
 
-### BLK-R33-OP-01 — staging does not carry the complete chunk contract
+### BLK-R33-OP-01 — staging did not carry the complete chunk contract
 
 Current `staging_chunks` contains only:
 
@@ -45,16 +47,18 @@ Current `staging_chunks` contains only:
 language, content type, access scope, sensitivity, instruction authority,
 domain authority, reproducible source locator, metadata, and retrieval state.
 
-R20 promotion therefore cannot safely synthesize a complete operational chunk
-from the current staging row without inventing data.
+**Contract status: RESOLVED.** P07 staging must carry every source field required
+for the operational contract. `created_at` and `search_tsv` remain derived by
+the database/index. The publisher may not synthesize missing fields.
 
-### BLK-R33-OP-02 — ordinal semantics disagree
+### BLK-R33-OP-02 — ordinal semantics disagreed
 
-Current `ChunkBatch`/R19 tests use contiguous zero-based ordinals (`0, 1, ...`).
+Current historical R19 code/tests used contiguous zero-based ordinals (`0, 1, ...`).
 `CONTRATO_CHUNK_V0_1` requires `chunk_ordinal >= 1`.
 
-A promotion function must not silently translate this until the canonical
-contract explicitly states where the conversion belongs.
+**Contract status: RESOLVED.** Ordinals are one-based end-to-end: P07 emits `1..N`,
+staging preserves them, publisher copies them unchanged, operational storage
+preserves them.
 
 ### BLK-R33-OP-03 — R20 SQL depends on functions that do not exist
 
@@ -64,20 +68,21 @@ contract explicitly states where the conversion belongs.
 - `promote_staging_chunks(...)`
 - `promote_staging_embeddings(...)`
 
-No implementation of those functions is present in the versioned SQL, and the
-current staging shape is insufficient to implement `promote_staging_chunks`
-without the missing metadata above.
+No implementation of those functions is present in the versioned SQL.
 
-### BLK-R33-OP-04 — membership cardinality needs an explicit projection rule
+**Status: IMPLEMENTATION_PENDING.** The staging contract is now sufficient to
+author those functions, but they must be implemented/tested in a later commit
+before any Cloud SQL migration execution.
 
-`SCHEMA_POSTGRES_V0_1` gives `source_assets` a singular `membership_id`, while
-the canonical registry can authorize one canonical object for multiple scopes
-and corpora (for example `PUBLICO|INTERNO` and
-`CORPUS_PUBLICO|CORPUS_INTERNO`).
+### BLK-R33-OP-04 — membership cardinality needed an explicit projection rule
 
-This design preserves the schema field but does not invent a normalization
-rule. Corpus/scope authorization remains in the live canonical policy adapter
-until the projection rule is explicitly closed.
+The original design gave `source_assets` a singular `membership_id`, while the
+canonical registry can authorize one canonical object for multiple scopes and
+corpora.
+
+**Contract status: RESOLVED.** `source_assets` references only `canonical_id`.
+`corpus_memberships` contains one row per valid pair. v0.1 accepts only
+`PUBLICO/CORPUS_PUBLICO` and `INTERNO/CORPUS_INTERNO`; crossed pairs fail closed.
 
 ## 3. Safe versioned artifacts
 
@@ -97,8 +102,8 @@ It creates the minimum operational retrieval projection needed by R20/R21:
 It deliberately does **not** define promotion functions and does not contain
 data mutation statements (`INSERT`, `UPDATE`, `DELETE`).
 
-It must not be applied to Cloud SQL until BLK-R33-OP-01 through OP-04 are
-resolved and covered by tests.
+It must not be applied to Cloud SQL until the enriched staging/promotion
+implementation is complete, covered by tests, and explicitly reauthorized.
 
 ## 4. Concrete PostgresReadModel
 
@@ -121,26 +126,24 @@ Its security properties are:
    `chunk_text_sha256` to the retrieval `content_hash`;
 7. zero allowlist performs no database read.
 
-The read model does not reinterpret pipe-delimited registry scope/corpus values.
-That authority remains upstream in `CanonicalPolicyAdapter`, which supplies the
-already-scoped `CandidateFilter`.
+The read model does not reinterpret registry scope/corpus values. That authority
+remains upstream in `CanonicalPolicyAdapter`, which now also rejects crossed
+scope/corpus pairs before candidate generation.
 
-## 5. Required next step before any Cloud SQL DDL
+## 5. Next implementation step before any Cloud SQL DDL
 
-Close the staging-to-operational mapping explicitly. The smallest safe contract
-change is to define a staging record that already contains every immutable or
-governance-derived field required by `CONTRATO_CHUNK_V0_1`, or to define a
-canonical enrichment join whose inputs and precedence are fully specified.
+The contract is closed. The next code-only act is now mechanical rather than
+architectural:
 
-Only then should we:
-
-1. implement and test `assert_staging_complete`;
-2. implement and test `promote_staging_chunks`;
-3. implement and test `promote_staging_embeddings`;
-4. run the full CI;
-5. review the migration diff;
-6. execute DDL in Cloud SQL;
-7. verify schema and row counts read-only;
-8. wire `PostgresReadModel` into the private runtime;
-9. perform one authenticated service-to-service query;
-10. only after that continue the WordPress/public-gateway portion of R33.
+1. add versioned enriched staging structures (`staging_sections` + complete
+   staging chunk fields);
+2. update staging writer/DTOs to populate them;
+3. implement and test `assert_staging_complete`;
+4. implement and test section/chunk/embedding promotion;
+5. run full CI;
+6. review the migration diff;
+7. only then request authorization to execute DDL in Cloud SQL;
+8. verify schema and row counts read-only;
+9. populate only canonically authorized current corpus;
+10. wire `PostgresReadModel` into the private runtime and perform one
+    authenticated service-to-service query.
