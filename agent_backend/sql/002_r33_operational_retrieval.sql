@@ -176,7 +176,8 @@ $$;
 
 DROP TRIGGER IF EXISTS chunks_search_tsv_before_write ON chunks;
 CREATE TRIGGER chunks_search_tsv_before_write
-BEFORE INSERT OR UPDATE OF source_title, h1, heading_path, chunk_text
+BEFORE INSERT OR UPDATE
+OF source_title, h1, heading_path, chunk_text
 ON chunks
 FOR EACH ROW
 EXECUTE FUNCTION vinc_set_chunks_search_tsv();
