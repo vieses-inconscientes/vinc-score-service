@@ -150,17 +150,36 @@ CREATE TABLE IF NOT EXISTS chunks (
     ingestion_run_id uuid NOT NULL REFERENCES ingestion_runs(run_id),
     created_at timestamptz NOT NULL DEFAULT now(),
     retrieval_enabled boolean NOT NULL DEFAULT TRUE,
-    search_tsv tsvector GENERATED ALWAYS AS (
-        to_tsvector(
-            'portuguese'::regconfig,
-            coalesce(source_title, '') || ' ' ||
-            coalesce(h1, '') || ' ' ||
-            coalesce(array_to_string(heading_path, ' '), '') || ' ' ||
-            chunk_text
-        )
-    ) STORED,
+    search_tsv tsvector NOT NULL,
     UNIQUE (section_id, chunk_ordinal)
 );
+
+-- PostgreSQL 18 rejects the previous GENERATED expression because the composed
+-- heading-path expression is not immutable. The canonical contract requires
+-- search_tsv to be database-derived, not specifically a generated column.
+-- A BEFORE trigger preserves that boundary: publishers never supply search_tsv.
+CREATE OR REPLACE FUNCTION vinc_set_chunks_search_tsv()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.search_tsv := to_tsvector(
+        'portuguese'::regconfig,
+        coalesce(NEW.source_title, '') || ' ' ||
+        coalesce(NEW.h1, '') || ' ' ||
+        coalesce(array_to_string(NEW.heading_path, ' '), '') || ' ' ||
+        NEW.chunk_text
+    );
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS chunks_search_tsv_before_write ON chunks;
+CREATE TRIGGER chunks_search_tsv_before_write
+BEFORE INSERT OR UPDATE OF source_title, h1, heading_path, chunk_text
+ON chunks
+FOR EACH ROW
+EXECUTE FUNCTION vinc_set_chunks_search_tsv();
 
 CREATE INDEX IF NOT EXISTS chunks_canonical_idx
     ON chunks (canonical_id);
