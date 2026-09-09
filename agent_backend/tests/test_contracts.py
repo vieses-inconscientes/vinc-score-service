@@ -28,8 +28,8 @@ def test_payload_fingerprint_is_deterministic() -> None:
 def test_document_validation_and_chunk_contracts() -> None:
     doc = NormalizedDocument("ASSET-001", "Title", "Canonical text")
     report = ValidationReport()
-    chunk = Chunk("CH-001", doc.source_asset_id, 0, doc.text, "hash")
+    chunk = Chunk("CH-001", doc.source_asset_id, 1, doc.text, "hash")
     batch = ChunkBatch((chunk,))
     assert report.can_advance
-    assert batch.chunks[0].ordinal == 0
+    assert batch.chunks[0].ordinal == 1
     assert IngestionState.AUDITED.value == "AUDITED"
