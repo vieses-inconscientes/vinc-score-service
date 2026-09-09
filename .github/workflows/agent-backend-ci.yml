@@ -21,9 +21,38 @@ jobs:
       - name: Run agent backend tests
         run: python -m pytest -q agent_backend/tests
 
-  container-build:
+  sql-deployment-preflight:
     runs-on: ubuntu-latest
     needs: test
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Run R33 SQL deployment preflight
+        run: bash agent_backend/scripts/r33_sql_deployment_preflight.sh
+
+  container-build:
+    runs-on: ubuntu-latest
+    needs: [test, sql-deployment-preflight]
     steps:
       - uses: actions/checkout@v4
       - name: Build internal-beta container without publishing
