@@ -54,7 +54,9 @@ jobs:
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Run R33 SQL deployment preflight
-        run: bash agent_backend/scripts/r33_sql_deployment_preflight.sh
+        run: |
+          bash agent_backend/scripts/r33_sql_deployment_preflight.sh
+          bash agent_backend/scripts/r33_acl_preflight.sh
 
   container-build:
     runs-on: ubuntu-latest
